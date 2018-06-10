@@ -2,10 +2,9 @@
 import numpy as np
 import argparse
 
-from util.loss_functions import CrossEntropyError
+from util.loss_functions import *
 from model.logistic_layer import LogisticLayer
 from model.classifier import Classifier
-from model.mlp_neuron import MLPNeuron
 
 from data.mnist_seven import MNISTSeven
 
@@ -27,17 +26,17 @@ class MultilayerPerceptron(Classifier):
 
         Parameters
         ----------
-        train : list
-        valid : list
-        test : list
+        train : DataSet
+        valid : DataSet
+        test : DataSet
         learningRate : float
         epochs : positive int
 
         Attributes
         ----------
-        trainingSet : list
-        validationSet : list
-        testSet : list
+        trainingSet : DataSet
+        validationSet : DataSet
+        testSet : DataSet
         learningRate : float
         epochs : positive int
         performances: array of floats
@@ -71,20 +70,19 @@ class MultilayerPerceptron(Classifier):
         # e.g. plotting, reporting..
         self.performances = []
 
-        self.layers = layers
-
-        # Build up the network from specific layers
         self.layers = []
 
         # Input layer
         inputActivation = "sigmoid"
-        self.layers.append(LogisticLayer(train.input.shape[1], 128, 
-                           None, inputActivation, False))
+        self.layers.append(LogisticLayer(train.input.shape[1], 128,
+                                         None, inputActivation, False))
+
+        self.layers.extend(layers)
 
         # Output layer
         outputActivation = "softmax"
-        self.layers.append(LogisticLayer(128, 10, 
-                           None, outputActivation, True))
+        self.layers.append(LogisticLayer(128, 10,
+                                         None, outputActivation, True))
 
         self.inputWeights = inputWeights
 
@@ -117,8 +115,10 @@ class MultilayerPerceptron(Classifier):
         # Here you have to propagate forward through the layers
         # And remember the activation values of each layer
         """
+        # Input layer
+        next_inp = inp
         for layer in self.layers:
-        pass
+            next_inp = layer.forward(next_inp)
 
     def _compute_error(self, target):
         """
@@ -127,15 +127,21 @@ class MultilayerPerceptron(Classifier):
         Returns
         -------
         ndarray :
-            a numpy array (1,nOut) containing the output of the layer
+            a numpy array (1,nOut) containing the errors
         """
-        pass
+        errors = target - self.layers[-1].outp
+        return errors
     
-    def _update_weights(self, learningRate):
+    def _update_weights(self, global_error):
         """
         Update the weights of the layers by propagating back the error
         """
-        pass
+        next_derivatives = global_error
+        next_weights = [1 for i in range(128)]
+        for layer in self.layers:
+            next_derivatives = layer.computeDerivative(next_derivatives, next_weights)
+            layer.update_weights(self.learningRate)
+            next_weights = layer.weights
         
     def train(self, verbose=True):
         """Train the Multi-layer Perceptrons
@@ -145,15 +151,16 @@ class MultilayerPerceptron(Classifier):
         verbose : boolean
             Print logging messages with validation accuracy if verbose is True.
         """
-        pass
-
-
+        for i in self.trainingSet.input.shape[0]:
+            res = self.classify(self.trainingSet.input[i])
+            err = self._compute_error(self.trainingSet.label[i])
+            self._update_weights(err)
 
     def classify(self, test_instance):
         # Classify an instance given the model of the classifier
         # You need to implement something here
-        pass
-        
+        self._feed_forward(test_instance)
+        return self.layers[-1].outp
 
     def evaluate(self, test=None):
         """Evaluate a whole dataset.
@@ -181,14 +188,15 @@ class MultilayerPerceptron(Classifier):
                                               axis=1)
         self.testSet.input = np.delete(self.testSet.input, 0, axis=1)
 
+
 def main(args):
-    hidden_layers = [[MLPNeuron(args.neurons_per_layer) for i in range(args.neurons_per_layer)] for j in range(args.num_layers)]
-    data = MNISTSeven("../data/mnist_seven.csv", 3000, 1000, 1000, oneHot=True)
+    hidden_layers = [LogisticLayer(128, 128, isClassifierLayer=True) for layer in range(args.num_layers)]
+    data = MNISTSeven(args.dataset, 3000, 1000, 1000, oneHot=True)
     MLP = MultilayerPerceptron(data.trainingSet, data.validationSet, data.trainingSet, hidden_layers)
     MLP.train(verbose=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test the multilayer perception")
     parser.add_argument("num_layers", type=int, help="Number of hidden layers")
-    parser.add_argument("neurons_per_layer", type=int, help="Number of neurons per hidden layer")
+    parser.add_argument("dataset", type=str, help="Path to dataset (CSV file)")
     main(parser.parse_args())
