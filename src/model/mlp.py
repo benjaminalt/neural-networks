@@ -1,9 +1,13 @@
 
 import numpy as np
+import argparse
 
 from util.loss_functions import CrossEntropyError
 from model.logistic_layer import LogisticLayer
 from model.classifier import Classifier
+from model.mlp_neuron import MLPNeuron
+
+from data.mnist_seven import MNISTSeven
 
 from sklearn.metrics import accuracy_score
 
@@ -43,7 +47,7 @@ class MultilayerPerceptron(Classifier):
         self.epochs = epochs
         self.outputTask = outputTask  # Either classification or regression
         self.outputActivation = outputActivation
-        self.cost = cost
+        #self.cost = cost
 
         self.trainingSet = train
         self.validationSet = valid
@@ -113,7 +117,9 @@ class MultilayerPerceptron(Classifier):
         # Here you have to propagate forward through the layers
         # And remember the activation values of each layer
         """
-        
+        for layer in self.layers:
+        pass
+
     def _compute_error(self, target):
         """
         Compute the total error of the network (error terms from the output layer)
@@ -174,3 +180,15 @@ class MultilayerPerceptron(Classifier):
         self.validationSet.input = np.delete(self.validationSet.input, 0,
                                               axis=1)
         self.testSet.input = np.delete(self.testSet.input, 0, axis=1)
+
+def main(args):
+    hidden_layers = [[MLPNeuron(args.neurons_per_layer) for i in range(args.neurons_per_layer)] for j in range(args.num_layers)]
+    data = MNISTSeven("../data/mnist_seven.csv", 3000, 1000, 1000, oneHot=True)
+    MLP = MultilayerPerceptron(data.trainingSet, data.validationSet, data.trainingSet, hidden_layers)
+    MLP.train(verbose=True)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Test the multilayer perception")
+    parser.add_argument("num_layers", type=int, help="Number of hidden layers")
+    parser.add_argument("neurons_per_layer", type=int, help="Number of neurons per hidden layer")
+    main(parser.parse_args())
