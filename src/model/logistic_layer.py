@@ -44,8 +44,7 @@ class LogisticLayer():
         # Get activation function from string
         self.activationString = activation
         self.activation = Activation.getActivation(self.activationString)
-        self.activationDerivative = Activation.getDerivative(
-                                    self.activationString)
+        self.activationDerivative = Activation.getDerivative(self.activationString)
 
         self.nIn = nIn
         self.nOut = nOut
